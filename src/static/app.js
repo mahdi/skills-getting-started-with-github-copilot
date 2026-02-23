@@ -20,14 +20,59 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
+
+        // Participants list HTML with delete icon and no bullets
+        const participantsHTML = `
+          <div class="participants-section">
+            <h5>Participants:</h5>
+            <ul class="participants-list" style="list-style: none; padding-left: 0;">
+              ${details.participants.length > 0
+                ? details.participants.map(p => `
+                  <li style="display: flex; align-items: center; margin-bottom: 4px;">
+                    <span>${p}</span>
+                    <button class="delete-participant" title="Remove participant" data-activity="${name}" data-email="${p}" style="margin-left: 8px; background: none; border: none; color: #c62828; cursor: pointer; font-size: 1.1em;">
+                      <span aria-hidden="true">&#10006;</span>
+                    </button>
+                  </li>
+                `).join("")
+                : '<li><em>No participants yet</em></li>'}
+            </ul>
+          </div>
+        `;
+
         activityCard.innerHTML = `
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          ${participantsHTML}
         `;
 
         activitiesList.appendChild(activityCard);
+
+        // Add event listeners for delete icons
+        setTimeout(() => {
+          activityCard.querySelectorAll('.delete-participant').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+              e.preventDefault();
+              const activity = btn.getAttribute('data-activity');
+              const email = btn.getAttribute('data-email');
+              if (confirm(`Remove ${email} from ${activity}?`)) {
+                try {
+                  const response = await fetch(`/activities/${encodeURIComponent(activity)}/unregister?email=${encodeURIComponent(email)}`, { method: 'DELETE' });
+                  if (response.ok) {
+                    fetchActivities();
+                  } else {
+                    const result = await response.json();
+                    alert(result.detail || 'Failed to remove participant.');
+                  }
+                } catch (err) {
+                  alert('Failed to remove participant.');
+                }
+              }
+            });
+          });
+        }, 0);
 
         // Add option to select dropdown
         const option = document.createElement("option");
@@ -62,6 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        fetchActivities(); // Refresh activities list after signup
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
